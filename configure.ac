@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_TARGET
-AM_INIT_AUTOMAKE ([1.11 no-dist-gzip dist-xz tar-ustar])
+AM_INIT_AUTOMAKE
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_PROG_CC
 LT_PREREQ([2.2])
