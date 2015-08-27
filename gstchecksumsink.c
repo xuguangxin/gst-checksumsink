@@ -27,6 +27,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum
+{
+  PROP_0,
+  PROP_CHECKSUM_TYPE
+};
+
+/* create a GType for GChecksumType */
+#define GST_CHECKSUM_SINK_CHECKSUM_TYPE (gst_checksum_sink_checksum_get_type())
+static GType
+gst_checksum_sink_checksum_get_type (void)
+{
+  static GType checksum_type = 0;
+
+  static const GEnumValue checksum_values[] = {
+    {G_CHECKSUM_MD5, "Use the MD5 hashing algorithm", "md5"},
+    {G_CHECKSUM_SHA1, "Use the SHA-1 hashing algorithm", "sha1"},
+    {G_CHECKSUM_SHA256, "Use the SHA-256 hashing algorithm", "sha256"},
+    {0, NULL, NULL}
+  };
+
+  if (!checksum_type)
+    checksum_type = g_enum_register_static ("GChecksumType", checksum_values);
+
+  return checksum_type;
+}
+
 static void gst_checksum_sink_dispose (GObject * object);
 static void gst_checksum_sink_finalize (GObject * object);
 
@@ -38,6 +64,10 @@ static gboolean gst_checksum_sink_propose_allocation (GstBaseSink * base_sink,
     GstQuery * query);
 static GstFlowReturn gst_checksum_sink_render (GstBaseSink * sink,
     GstBuffer * buffer);
+static void gst_checksum_sink_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec);
+static void gst_checksum_sink_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec);
 
 static GstStaticPadTemplate gst_checksum_sink_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
@@ -63,6 +93,8 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstBaseSinkClass *base_sink_class = GST_BASE_SINK_CLASS (klass);
 
+  gobject_class->set_property = gst_checksum_sink_set_property;
+  gobject_class->get_property = gst_checksum_sink_get_property;
   gobject_class->dispose = gst_checksum_sink_dispose;
   gobject_class->finalize = gst_checksum_sink_finalize;
   base_sink_class->start = GST_DEBUG_FUNCPTR (gst_checksum_sink_start);
@@ -70,6 +102,11 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
   base_sink_class->set_caps = gst_checksum_sink_set_caps;
   base_sink_class->propose_allocation = gst_checksum_sink_propose_allocation;
   base_sink_class->render = GST_DEBUG_FUNCPTR (gst_checksum_sink_render);
+
+  g_object_class_install_property (gobject_class, PROP_CHECKSUM_TYPE,
+      g_param_spec_enum ("checksum-type", "Checksum TYpe",
+          "Checksum algorithm to use", GST_CHECKSUM_SINK_CHECKSUM_TYPE,
+          G_CHECKSUM_SHA1, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_checksum_sink_src_template));
@@ -84,7 +121,40 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
 static void
 gst_checksum_sink_init (GstChecksumSink * checksumsink)
 {
+  checksumsink->checksum_type = G_CHECKSUM_SHA1;
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
+}
+
+static void
+gst_checksum_sink_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstChecksumSink *sink = GST_CHECKSUM_SINK (object);
+
+  switch (prop_id) {
+    case PROP_CHECKSUM_TYPE:
+      sink->checksum_type = g_value_get_enum (value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+gst_checksum_sink_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec)
+{
+  GstChecksumSink *sink = GST_CHECKSUM_SINK (object);
+
+  switch (prop_id) {
+    case PROP_CHECKSUM_TYPE:
+      g_value_set_enum (value, sink->checksum_type);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
 }
 
 void
@@ -194,7 +264,8 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   }
   data = dp;
 
-  checksum = g_compute_checksum_for_data (G_CHECKSUM_SHA1, data, size);
+  checksum =
+      g_compute_checksum_for_data (checksumsink->checksum_type, data, size);
   g_print ("checksum %s\n", checksum);
 
   gst_video_frame_unmap (&frame);

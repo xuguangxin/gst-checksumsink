@@ -40,6 +40,8 @@ struct _GstChecksumSink
 {
   GstBaseSink base_checksumsink;
   GstVideoInfo vinfo;
+
+  GChecksumType checksum_type;
 };
 
 struct _GstChecksumSinkClass
