@@ -30,7 +30,8 @@
 enum
 {
   PROP_0,
-  PROP_CHECKSUM_TYPE
+  PROP_CHECKSUM_TYPE,
+  PROP_PLANE_CHECKSUM
 };
 
 /* create a GType for GChecksumType */
@@ -108,6 +109,11 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
           "Checksum algorithm to use", GST_CHECKSUM_SINK_CHECKSUM_TYPE,
           G_CHECKSUM_SHA1, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_PLANE_CHECKSUM,
+      g_param_spec_boolean ("plane-checksum", "Plane checksum",
+          "Find Checksum for each plane", FALSE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_checksum_sink_src_template));
   gst_element_class_add_pad_template (element_class,
@@ -122,6 +128,7 @@ static void
 gst_checksum_sink_init (GstChecksumSink * checksumsink)
 {
   checksumsink->checksum_type = G_CHECKSUM_SHA1;
+  checksumsink->plane_checksum = FALSE;
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
 }
 
@@ -134,6 +141,9 @@ gst_checksum_sink_set_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
       sink->checksum_type = g_value_get_enum (value);
+      break;
+    case PROP_PLANE_CHECKSUM:
+      sink->plane_checksum = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -150,6 +160,9 @@ gst_checksum_sink_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
       g_value_set_enum (value, sink->checksum_type);
+      break;
+    case PROP_PLANE_CHECKSUM:
+      g_value_set_boolean (value, sink->plane_checksum);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -202,6 +215,19 @@ gst_checksum_sink_propose_allocation (GstBaseSink * base_sink, GstQuery * query)
   return TRUE;
 }
 
+static void
+get_plane_width_and_height (guint plane, guint width, guint height, guint * w,
+    guint * h)
+{
+  if (plane != 0) {
+    *w = width / 2;
+    *h = height / 2;
+  } else {
+    *w = width;
+    *h = height;
+  }
+}
+
 static GstFlowReturn
 gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 {
@@ -209,9 +235,10 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   gchar *checksum;
   GstVideoFrame frame;
   GstVideoInfo *sinfo;
-  guint8 *data = NULL, *dp, *sp;
+  guint8 *data = NULL, *dp, *sp, *pp;
   guint j, n_planes, plane;
   guint w, h, size = 0;
+  guint Ysize = 0, Usize = 0, Vsize = 0;
   guint width, height;
 
   GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
@@ -232,7 +259,11 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     return GST_FLOW_ERROR;
   }
 
-  size = (width * height) + (2 * ((width / 2) * (height / 2)));
+  Ysize = width * height;
+  Usize = (width / 2) * (height / 2);
+  Vsize = Usize;
+
+  size = Ysize + Usize + Vsize;
 
   if (!gst_video_frame_map (&frame, &checksumsink->vinfo, buffer, GST_MAP_READ)) {
     GST_ERROR_OBJECT (checksumsink, "Failed to map frame");
@@ -247,30 +278,65 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   dp = data;
   for (plane = 0; plane < n_planes; plane++) {
 
-    if (plane != 0) {
-      w = width / 2;
-      h = height / 2;
-    } else {
-      w = width;
-      h = height;
-    }
     sp = frame.data[plane];
+
+    get_plane_width_and_height (plane, width, height, &w, &h);
 
     for (j = 0; j < h; j++) {
       memcpy (data, sp, w);
       data += w;
       sp += sinfo->stride[plane];
     }
+
+    if (checksumsink->plane_checksum) {
+      guint plane_size;
+
+      switch (plane) {
+        case 0:
+          pp = dp;
+          plane_size = Ysize;
+          break;
+        case 1:
+          pp = dp + Ysize;
+          if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
+              GST_VIDEO_FORMAT_I420)
+            plane_size = Usize;
+          else
+            plane_size = Vsize;
+          break;
+        case 2:
+          if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
+              GST_VIDEO_FORMAT_I420) {
+            pp = dp + Ysize + Usize;
+            plane_size = Vsize;
+          } else {
+            pp = dp + Ysize + Vsize;
+            plane_size = Usize;
+          }
+          break;
+      }
+
+      checksum =
+          g_compute_checksum_for_data (checksumsink->checksum_type, pp,
+          plane_size);
+      g_print ("%s  ", checksum);
+      g_free (checksum);
+    }
   }
   data = dp;
 
-  checksum =
-      g_compute_checksum_for_data (checksumsink->checksum_type, data, size);
-  g_print ("checksum %s\n", checksum);
+  if (checksumsink->plane_checksum)
+    g_print ("\n");
 
-  gst_video_frame_unmap (&frame);
-  g_free (checksum);
+  if (!checksumsink->plane_checksum) {
+    checksum =
+        g_compute_checksum_for_data (checksumsink->checksum_type, data, size);
+    g_print ("FrameChecksum %s\n", checksum);
+    g_free (checksum);
+  }
+
   g_free (data);
+  gst_video_frame_unmap (&frame);
 
   return GST_FLOW_OK;
 }

@@ -41,7 +41,9 @@ struct _GstChecksumSink
   GstBaseSink base_checksumsink;
   GstVideoInfo vinfo;
 
+  /* properties */
   GChecksumType checksum_type;
+  gboolean plane_checksum;
 };
 
 struct _GstChecksumSinkClass
