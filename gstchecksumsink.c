@@ -22,15 +22,13 @@
 #include "config.h"
 #endif
 
-#include <gst/gst.h>
 #include "gstchecksumsink.h"
-#include <stdlib.h>
-#include <string.h>
-
 enum
 {
   PROP_0,
   PROP_CHECKSUM_TYPE,
+  PROP_FILE_CHECKSUM,
+  PROP_FRAME_CHECKSUM,
   PROP_PLANE_CHECKSUM
 };
 
@@ -109,9 +107,19 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
           "Checksum algorithm to use", GST_CHECKSUM_SINK_CHECKSUM_TYPE,
           G_CHECKSUM_SHA1, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
+      g_param_spec_boolean ("file-checksum", "File checksum",
+          "Find Checksum for the whole raw data file", FALSE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_FRAME_CHECKSUM,
+      g_param_spec_boolean ("frame-checksum", "Frame checksum",
+          "Find Checksum for each Frame", TRUE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (gobject_class, PROP_PLANE_CHECKSUM,
       g_param_spec_boolean ("plane-checksum", "Plane checksum",
-          "Find Checksum for each plane", FALSE,
+          "Find Checksum for each Plane", FALSE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
@@ -128,6 +136,8 @@ static void
 gst_checksum_sink_init (GstChecksumSink * checksumsink)
 {
   checksumsink->checksum_type = G_CHECKSUM_SHA1;
+  checksumsink->file_checksum = FALSE;
+  checksumsink->frame_checksum = TRUE;
   checksumsink->plane_checksum = FALSE;
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
 }
@@ -141,6 +151,12 @@ gst_checksum_sink_set_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
       sink->checksum_type = g_value_get_enum (value);
+      break;
+    case PROP_FILE_CHECKSUM:
+      sink->file_checksum = g_value_get_boolean (value);
+      break;
+    case PROP_FRAME_CHECKSUM:
+      sink->frame_checksum = g_value_get_boolean (value);
       break;
     case PROP_PLANE_CHECKSUM:
       sink->plane_checksum = g_value_get_boolean (value);
@@ -160,6 +176,12 @@ gst_checksum_sink_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
       g_value_set_enum (value, sink->checksum_type);
+      break;
+    case PROP_FILE_CHECKSUM:
+      g_value_set_boolean (value, sink->file_checksum);
+      break;
+    case PROP_FRAME_CHECKSUM:
+      g_value_set_boolean (value, sink->frame_checksum);
       break;
     case PROP_PLANE_CHECKSUM:
       g_value_set_boolean (value, sink->plane_checksum);
@@ -191,6 +213,37 @@ gst_checksum_sink_start (GstBaseSink * sink)
 static gboolean
 gst_checksum_sink_stop (GstBaseSink * sink)
 {
+  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (sink);
+
+  if (checksumsink->file_checksum) {
+    gchar *md5_cmd;
+
+    if (checksumsink->raw_file_name == NULL) {
+      GST_ERROR ("Failed to find the raw file");
+      return FALSE;
+    }
+
+    md5_cmd = g_strdup_printf ("md5sum %s", checksumsink->raw_file_name);
+    if (system (md5_cmd) == -1) {
+      GST_ERROR ("Failed to execute the shell command from program");
+      return FALSE;
+    }
+    if (md5_cmd)
+      g_free (md5_cmd);
+
+    md5_cmd = g_strdup_printf ("rm %s", checksumsink->raw_file_name);
+    if (system (md5_cmd) == -1) {
+      GST_ERROR ("Failed to execute the shell command from program");
+      return FALSE;
+    }
+    if (md5_cmd)
+      g_free (md5_cmd);
+
+    if (checksumsink->raw_file_name)
+      g_free (checksumsink->raw_file_name);
+    if (checksumsink->fd)
+      fclose (checksumsink->fd);
+  }
   return TRUE;
 }
 
@@ -237,11 +290,26 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   GstVideoInfo *sinfo;
   guint8 *data = NULL, *dp, *sp, *pp;
   guint j, n_planes, plane;
-  guint w, h, size = 0;
+  guint w, h, size = 0, file_size = 0;
   guint Ysize = 0, Usize = 0, Vsize = 0;
   guint width, height;
 
   GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
+
+  if (checksumsink->file_checksum && (checksumsink->raw_file_name == NULL)) {
+
+    checksumsink->raw_file_name = g_build_filename ("tmp.yuv", NULL);
+    if (checksumsink->raw_file_name == NULL) {
+      GST_ERROR_OBJECT (checksumsink, "Failed to create tmp file");
+      return GST_FLOW_ERROR;
+    }
+
+    checksumsink->fd = fopen (tmp_file, "a");
+    if (checksumsink->fd == NULL) {
+      GST_ERROR_OBJECT (checksumsink, "Failed to Open tmp file");
+      return GST_FLOW_ERROR;
+    }
+  }
 
   if (!crop_meta) {
     width = GST_VIDEO_INFO_WIDTH (&checksumsink->vinfo);
@@ -328,11 +396,19 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   if (checksumsink->plane_checksum)
     g_print ("\n");
 
-  if (!checksumsink->plane_checksum) {
+  if (checksumsink->frame_checksum) {
     checksum =
         g_compute_checksum_for_data (checksumsink->checksum_type, data, size);
     g_print ("FrameChecksum %s\n", checksum);
     g_free (checksum);
+  }
+
+  if (checksumsink->file_checksum) {
+    if (write (fileno (checksumsink->fd), data, size) < size) {
+      GST_ERROR_OBJECT (checksumsink, "Failed to write to the file");
+      return GST_FLOW_ERROR;
+    }
+    file_size += size;
   }
 
   g_free (data);
