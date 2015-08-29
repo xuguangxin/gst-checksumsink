@@ -304,7 +304,7 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
       return GST_FLOW_ERROR;
     }
 
-    checksumsink->fd = fopen (tmp_file, "a");
+    checksumsink->fd = fopen (checksumsink->raw_file_name, "a");
     if (checksumsink->fd == NULL) {
       GST_ERROR_OBJECT (checksumsink, "Failed to Open tmp file");
       return GST_FLOW_ERROR;
