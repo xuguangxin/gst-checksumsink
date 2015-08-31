@@ -109,8 +109,9 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
       g_param_spec_boolean ("file-checksum", "File checksum",
-          "Find Checksum for the whole raw data file", FALSE,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "Find Checksum for the whole raw data file, \n"
+          "			Warning: This will only work in shell prompt since the program invokes shell command",
+          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FRAME_CHECKSUM,
       g_param_spec_boolean ("frame-checksum", "Frame checksum",
@@ -298,7 +299,8 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 
   if (checksumsink->file_checksum && (checksumsink->raw_file_name == NULL)) {
 
-    checksumsink->raw_file_name = g_build_filename ("tmp.yuv", NULL);
+    /*Fixme: Use g_mkstemp_full() */
+    checksumsink->raw_file_name = g_build_filename ("tmp_XXXXXX.yuv", NULL);
     if (checksumsink->raw_file_name == NULL) {
       GST_ERROR_OBJECT (checksumsink, "Failed to create tmp file");
       return GST_FLOW_ERROR;
