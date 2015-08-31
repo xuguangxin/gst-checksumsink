@@ -224,7 +224,7 @@ gst_checksum_sink_stop (GstBaseSink * sink)
       return FALSE;
     }
 
-    md5_cmd = g_strdup_printf ("md5sum %s", checksumsink->raw_file_name);
+    md5_cmd = g_strdup_printf ("md5sum %s | awk '{ print $1}'", checksumsink->raw_file_name);
     if (system (md5_cmd) == -1) {
       GST_ERROR ("Failed to execute the shell command from program");
       return FALSE;
