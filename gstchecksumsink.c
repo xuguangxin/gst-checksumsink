@@ -105,11 +105,11 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
   g_object_class_install_property (gobject_class, PROP_CHECKSUM_TYPE,
       g_param_spec_enum ("checksum-type", "Checksum TYpe",
           "Checksum algorithm to use", GST_CHECKSUM_SINK_CHECKSUM_TYPE,
-          G_CHECKSUM_SHA1, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          G_CHECKSUM_MD5, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
       g_param_spec_boolean ("file-checksum", "File checksum",
-          "Find Checksum for the whole raw data file, \n"
+          "Find Checksum for the whole raw data file, (only supports MD5)\n"
           "			Warning: This will only work in shell prompt since the program invokes shell command",
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
@@ -136,7 +136,7 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
 static void
 gst_checksum_sink_init (GstChecksumSink * checksumsink)
 {
-  checksumsink->checksum_type = G_CHECKSUM_SHA1;
+  checksumsink->checksum_type = G_CHECKSUM_MD5;
   checksumsink->file_checksum = FALSE;
   checksumsink->frame_checksum = TRUE;
   checksumsink->plane_checksum = FALSE;
