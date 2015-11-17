@@ -224,7 +224,9 @@ gst_checksum_sink_stop (GstBaseSink * sink)
       return FALSE;
     }
 
-    md5_cmd = g_strdup_printf ("md5sum %s | awk '{ print $1}'", checksumsink->raw_file_name);
+    md5_cmd =
+        g_strdup_printf ("md5sum %s | awk '{ print $1}'",
+        checksumsink->raw_file_name);
     if (system (md5_cmd) == -1) {
       GST_ERROR ("Failed to execute the shell command from program");
       return FALSE;
@@ -274,8 +276,18 @@ get_plane_width_and_height (guint plane, guint width, guint height, guint * w,
     guint * h)
 {
   if (plane != 0) {
-    *w = width / 2;
-    *h = height / 2;
+    /* u_v width */
+    if (width % 2 != 0)
+      *w = (width + 1) / 2;
+    else
+      *w = width / 2;
+
+    /* u_v heihgt */
+    if (height % 2 != 0)
+      *h = (height + 1) / 2;
+    else
+      *h = height / 2;
+
   } else {
     *w = width;
     *h = height;
@@ -293,7 +305,7 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   guint j, n_planes, plane;
   guint w, h, size = 0, file_size = 0;
   guint Ysize = 0, Usize = 0, Vsize = 0;
-  guint width, height;
+  guint width, height, y_width, y_height, uv_width, uv_height;
 
   GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
 
@@ -329,8 +341,14 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     return GST_FLOW_ERROR;
   }
 
-  Ysize = width * height;
-  Usize = (width / 2) * (height / 2);
+
+  /* get width and height for luma */
+  get_plane_width_and_height (0, width, height, &y_width, &y_height);
+  /* get width and height for chroma */
+  get_plane_width_and_height (1, width, height, &uv_width, &uv_height);
+
+  Ysize = y_width * y_height;
+  Usize = uv_width * uv_height;
   Vsize = Usize;
 
   size = Ysize + Usize + Vsize;
@@ -350,7 +368,13 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 
     sp = frame.data[plane];
 
-    get_plane_width_and_height (plane, width, height, &w, &h);
+    if (plane == 0) {
+      w = y_width;
+      h = y_height;
+    } else {
+      w = uv_width;
+      h = uv_height;
+    }
 
     for (j = 0; j < h; j++) {
       memcpy (data, sp, w);
