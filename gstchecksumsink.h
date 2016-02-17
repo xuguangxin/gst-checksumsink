@@ -50,8 +50,10 @@ struct _GstChecksumSink
   gboolean file_checksum;
   gboolean frame_checksum;
   gboolean plane_checksum;
+  gboolean dump_output;
 
   gchar *raw_file_name;
+  FILE *raw_output;
   FILE *fd;
 };
 

@@ -29,7 +29,8 @@ enum
   PROP_CHECKSUM_TYPE,
   PROP_FILE_CHECKSUM,
   PROP_FRAME_CHECKSUM,
-  PROP_PLANE_CHECKSUM
+  PROP_PLANE_CHECKSUM,
+  PROP_RAW_OUTPUT
 };
 
 /* create a GType for GChecksumType */
@@ -123,6 +124,11 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
           "Find Checksum for each Plane", FALSE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_RAW_OUTPUT,
+      g_param_spec_boolean ("dump-output", "Dump output",
+          "Save the decode raw yuv into file (only support in YV12 and I420 format)", FALSE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_checksum_sink_src_template));
   gst_element_class_add_pad_template (element_class,
@@ -140,6 +146,7 @@ gst_checksum_sink_init (GstChecksumSink * checksumsink)
   checksumsink->file_checksum = FALSE;
   checksumsink->frame_checksum = TRUE;
   checksumsink->plane_checksum = FALSE;
+  checksumsink->dump_output = FALSE;
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
 }
 
@@ -161,6 +168,9 @@ gst_checksum_sink_set_property (GObject * object, guint prop_id,
       break;
     case PROP_PLANE_CHECKSUM:
       sink->plane_checksum = g_value_get_boolean (value);
+      break;
+    case PROP_RAW_OUTPUT:
+      sink->dump_output = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -187,6 +197,9 @@ gst_checksum_sink_get_property (GObject * object, guint prop_id,
     case PROP_PLANE_CHECKSUM:
       g_value_set_boolean (value, sink->plane_checksum);
       break;
+    case PROP_RAW_OUTPUT:
+       g_value_set_boolean (value, sink->dump_output);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -208,6 +221,16 @@ gst_checksum_sink_finalize (GObject * object)
 static gboolean
 gst_checksum_sink_start (GstBaseSink * sink)
 {
+  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (sink);
+
+  if (checksumsink->dump_output) {
+    checksumsink->raw_output = fopen ("dump_output.yuv", "wb");
+    if (checksumsink->raw_output == NULL) {
+      GST_ERROR_OBJECT (checksumsink, "Failed to create dump_output.yuv file");
+      return FALSE;
+    }
+  }
+
   return TRUE;
 }
 
@@ -247,6 +270,11 @@ gst_checksum_sink_stop (GstBaseSink * sink)
     if (checksumsink->fd)
       fclose (checksumsink->fd);
   }
+
+  if (checksumsink->raw_output) {
+    fclose (checksumsink->raw_output);
+  }
+
   return TRUE;
 }
 
@@ -418,6 +446,10 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     }
   }
   data = dp;
+
+  if (checksumsink->dump_output && checksumsink->raw_output) {
+    fwrite(data, 1, size, checksumsink->raw_output);
+  }
 
   if (checksumsink->plane_checksum)
     g_print ("\n");
