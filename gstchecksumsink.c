@@ -126,8 +126,8 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_RAW_OUTPUT,
       g_param_spec_boolean ("dump-output", "Dump output",
-          "Save the decode raw yuv into file (only support in YV12 and I420 format)", FALSE,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "Save the decode raw yuv into file (only support in YV12 and I420 format)",
+          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_checksum_sink_src_template));
@@ -198,7 +198,7 @@ gst_checksum_sink_get_property (GObject * object, guint prop_id,
       g_value_set_boolean (value, sink->plane_checksum);
       break;
     case PROP_RAW_OUTPUT:
-       g_value_set_boolean (value, sink->dump_output);
+      g_value_set_boolean (value, sink->dump_output);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -363,12 +363,12 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 
   /* only i420 and yv12 are supported */
   if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_I420 &&
-      GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_YV12) {
+      GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_YV12 &&
+      GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_NV12) {
     GST_ERROR_OBJECT (checksumsink,
-        "Unsupported raw video format, Only supporting I420 and YV12!!");
+        "Unsupported raw video format, Only supporting I420, YV12 and NV12!!");
     return GST_FLOW_ERROR;
   }
-
 
   /* get width and height for luma */
   get_plane_width_and_height (0, width, height, &y_width, &y_height);
@@ -400,8 +400,13 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
       w = y_width;
       h = y_height;
     } else {
-      w = uv_width;
-      h = uv_height;
+      if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) == GST_VIDEO_FORMAT_NV12) {
+        w = 2 * uv_width;
+        h = uv_height;
+      } else {
+        w = uv_width;
+        h = uv_height;
+      }
     }
 
     for (j = 0; j < h; j++) {
@@ -421,6 +426,9 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
         case 1:
           pp = dp + Ysize;
           if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
+              GST_VIDEO_FORMAT_NV12)
+            plane_size = Usize + Vsize;
+          else if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
               GST_VIDEO_FORMAT_I420)
             plane_size = Usize;
           else
@@ -448,7 +456,7 @@ gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   data = dp;
 
   if (checksumsink->dump_output && checksumsink->raw_output) {
-    fwrite(data, 1, size, checksumsink->raw_output);
+    fwrite (data, 1, size, checksumsink->raw_output);
   }
 
   if (checksumsink->plane_checksum)
