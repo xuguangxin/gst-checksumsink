@@ -22,7 +22,7 @@
 #define _GST_CKSUM_IMAGE_SINK_H_
 
 #include <gst/gst.h>
-#include <gst/base/gstbasesink.h>
+#include <gst/video/gstvideosink.h>
 #include <gst/video/video.h>
 #include <stdio.h>
 
@@ -39,7 +39,7 @@ typedef struct _GstCksumImageSinkClass GstCksumImageSinkClass;
 
 struct _GstCksumImageSink
 {
-  GstBaseSink base_cksumimagesink;
+  GstVideoSink parent;
   GstVideoInfo vinfo;
 
   /* properties */
@@ -56,7 +56,7 @@ struct _GstCksumImageSink
 
 struct _GstCksumImageSinkClass
 {
-  GstBaseSinkClass base_cksumimagesink_class;
+  GstVideoSinkClass parent_class;
 };
 
 GType gst_cksum_image_sink_get_type (void);

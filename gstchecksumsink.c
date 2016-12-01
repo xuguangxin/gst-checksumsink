@@ -86,7 +86,7 @@ gst_cksum_image_sink_hash_get_type (void)
 }
 
 #define gst_cksum_image_sink_parent_class parent_class
-G_DEFINE_TYPE (GstCksumImageSink, gst_cksum_image_sink, GST_TYPE_BASE_SINK);
+G_DEFINE_TYPE (GstCksumImageSink, gst_cksum_image_sink, GST_TYPE_VIDEO_SINK);
 
 static void
 gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
