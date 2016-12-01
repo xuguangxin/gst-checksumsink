@@ -249,6 +249,37 @@ gst_cksum_image_sink_start (GstBaseSink * sink)
 }
 
 static gboolean
+checksum_raw_file (GstCksumImageSink * checksumsink)
+{
+  gchar *md5_cmd;
+  int ret;
+
+  if (!checksumsink->file_checksum)
+    return TRUE;
+  if (!checksumsink->raw_file_name) {
+    GST_WARNING_OBJECT (checksumsink, "unspecified raw file");
+    return FALSE;
+  }
+
+  md5_cmd = g_strdup_printf ("md5sum %s | awk '{ print $1}'",
+        checksumsink->raw_file_name);
+
+  ret = system (md5_cmd);
+  g_free (md5_cmd);
+  if (ret == -1) {
+    GST_WARNING_OBJECT (checksumsink, "failed to execute the command: %s",
+        strerror (errno));
+  }
+
+  if (g_unlink (checksumsink->raw_file_name) != 0) {
+    GST_WARNING_OBJECT (checksumsink, "failed to remove %s: %s",
+        checksumsink->raw_file_name, strerror (errno));
+  }
+
+  return (ret != -1);
+}
+
+static gboolean
 gst_cksum_image_sink_stop (GstBaseSink * sink)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
@@ -256,29 +287,7 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
   if (checksumsink->fd != -1)
     close (checksumsink->fd);
 
-  if (checksumsink->file_checksum) {
-    gchar *md5_cmd;
-
-    if (checksumsink->raw_file_name == NULL) {
-      GST_ERROR ("Failed to find the raw file");
-      return FALSE;
-    }
-
-    md5_cmd =
-        g_strdup_printf ("md5sum %s | awk '{ print $1}'",
-        checksumsink->raw_file_name);
-    if (system (md5_cmd) == -1) {
-      GST_ERROR ("Failed to execute the shell command from program");
-      return FALSE;
-    }
-    if (md5_cmd)
-      g_free (md5_cmd);
-
-    if (g_unlink (checksumsink->raw_file_name) != 0) {
-      GST_WARNING_OBJECT ("failed to remove %s: %s",
-          checksumsink->raw_file_name, strerror (errno));
-    }
-  }
+  checksum_raw_file (checksumsink);
 
   g_clear_pointer (&checksumsink->raw_file_name, g_free);
 
