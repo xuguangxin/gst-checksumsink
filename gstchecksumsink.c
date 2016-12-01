@@ -381,8 +381,8 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   }
 
   if (!crop_meta) {
-    width = GST_VIDEO_INFO_WIDTH (&checksumsink->vinfo);
-    height = GST_VIDEO_INFO_HEIGHT (&checksumsink->vinfo);
+    width = GST_VIDEO_FRAME_WIDTH (&frame);
+    height = GST_VIDEO_FRAME_HEIGHT (&frame);
   } else {
     width = crop_meta->width;
     height = crop_meta->height;
