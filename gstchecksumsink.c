@@ -367,7 +367,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
   gchar *checksum;
   GstVideoFrame frame;
-  GstVideoInfo *sinfo;
   guint8 *data = NULL, *dp, *sp, *pp;
   guint j, n_planes, plane;
   guint w, h, size = 0, file_size = 0;
@@ -399,15 +398,14 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
 
   size = Ysize + Usize + Vsize;
 
-  sinfo = &frame.info;
-  n_planes = sinfo->finfo->n_planes;
+  n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
 
   data = (guint8 *) g_malloc (size);
 
   dp = data;
   for (plane = 0; plane < n_planes; plane++) {
 
-    sp = frame.data[plane];
+    sp = GST_VIDEO_FRAME_PLANE_DATA (&frame, plane);
 
     if (plane == 0) {
       w = y_width;
@@ -425,7 +423,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
     for (j = 0; j < h; j++) {
       memcpy (data, sp, w);
       data += w;
-      sp += sinfo->stride[plane];
+      sp += GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
     }
 
     if (checksumsink->plane_checksum) {
