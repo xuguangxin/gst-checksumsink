@@ -18,8 +18,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _GST_CHECKSUM_SINK_H_
-#define _GST_CHECKSUM_SINK_H_
+#ifndef _GST_CKSUM_IMAGE_SINK_H_
+#define _GST_CKSUM_IMAGE_SINK_H_
 
 #include <gst/gst.h>
 #include <gst/base/gstbasesink.h>
@@ -31,18 +31,18 @@
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_CHECKSUM_SINK   (gst_checksum_sink_get_type())
-#define GST_CHECKSUM_SINK(obj)   (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_CHECKSUM_SINK,GstChecksumSink))
-#define GST_CHECKSUM_SINK_CLASS(klass)   (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_CHECKSUM_SINK,GstChecksumSinkClass))
-#define GST_IS_CHECKSUM_SINK(obj)   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_CHECKSUM_SINK))
-#define GST_IS_CHECKSUM_SINK_CLASS(obj)   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_CHECKSUM_SINK))
+#define GST_TYPE_CKSUM_IMAGE_SINK   (gst_cksum_image_sink_get_type())
+#define GST_CKSUM_IMAGE_SINK(obj)   (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_CKSUM_IMAGE_SINK,GstCksumImageSink))
+#define GST_CKSUM_IMAGE_SINK_CLASS(klass)   (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_CKSUM_IMAGE_SINK,GstCksumImageSinkClass))
+#define GST_IS_CKSUM_IMAGE_SINK(obj)   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_CKSUM_IMAGE_SINK))
+#define GST_IS_CKSUM_IMAGE_SINK_CLASS(obj)   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_CKSUM_IMAGE_SINK))
 
-typedef struct _GstChecksumSink GstChecksumSink;
-typedef struct _GstChecksumSinkClass GstChecksumSinkClass;
+typedef struct _GstCksumImageSink GstCksumImageSink;
+typedef struct _GstCksumImageSinkClass GstCksumImageSinkClass;
 
-struct _GstChecksumSink
+struct _GstCksumImageSink
 {
-  GstBaseSink base_checksumsink;
+  GstBaseSink base_cksumimagesink;
   GstVideoInfo vinfo;
 
   /* properties */
@@ -57,12 +57,12 @@ struct _GstChecksumSink
   FILE *fd;
 };
 
-struct _GstChecksumSinkClass
+struct _GstCksumImageSinkClass
 {
-  GstBaseSinkClass base_checksumsink_class;
+  GstBaseSinkClass base_cksumimagesink_class;
 };
 
-GType gst_checksum_sink_get_type (void);
+GType gst_cksum_image_sink_get_type (void);
 
 G_END_DECLS
 

@@ -53,29 +53,29 @@ gst_checksum_sink_checksum_get_type (void)
   return checksum_type;
 }
 
-static void gst_checksum_sink_dispose (GObject * object);
-static void gst_checksum_sink_finalize (GObject * object);
+static void gst_cksum_image_sink_dispose (GObject * object);
+static void gst_cksum_image_sink_finalize (GObject * object);
 
-static gboolean gst_checksum_sink_start (GstBaseSink * sink);
-static gboolean gst_checksum_sink_stop (GstBaseSink * sink);
-static gboolean gst_checksum_sink_set_caps (GstBaseSink * base_sink,
+static gboolean gst_cksum_image_sink_start (GstBaseSink * sink);
+static gboolean gst_cksum_image_sink_stop (GstBaseSink * sink);
+static gboolean gst_cksum_image_sink_set_caps (GstBaseSink * base_sink,
     GstCaps * caps);
-static gboolean gst_checksum_sink_propose_allocation (GstBaseSink * base_sink,
+static gboolean gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink,
     GstQuery * query);
-static GstFlowReturn gst_checksum_sink_render (GstBaseSink * sink,
+static GstFlowReturn gst_cksum_image_sink_render (GstBaseSink * sink,
     GstBuffer * buffer);
-static void gst_checksum_sink_set_property (GObject * object, guint prop_id,
+static void gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec);
-static void gst_checksum_sink_get_property (GObject * object, guint prop_id,
+static void gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
-static GstStaticPadTemplate gst_checksum_sink_sink_template =
+static GstStaticPadTemplate gst_cksum_image_sink_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-static GstStaticPadTemplate gst_checksum_sink_src_template =
+static GstStaticPadTemplate gst_cksum_image_sink_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
@@ -83,25 +83,25 @@ GST_STATIC_PAD_TEMPLATE ("src",
 
 /* class initialization */
 
-#define gst_checksum_sink_parent_class parent_class
-G_DEFINE_TYPE (GstChecksumSink, gst_checksum_sink, GST_TYPE_BASE_SINK);
+#define gst_cksum_image_sink_parent_class parent_class
+G_DEFINE_TYPE (GstCksumImageSink, gst_cksum_image_sink, GST_TYPE_BASE_SINK);
 
 static void
-gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
+gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstBaseSinkClass *base_sink_class = GST_BASE_SINK_CLASS (klass);
 
-  gobject_class->set_property = gst_checksum_sink_set_property;
-  gobject_class->get_property = gst_checksum_sink_get_property;
-  gobject_class->dispose = gst_checksum_sink_dispose;
-  gobject_class->finalize = gst_checksum_sink_finalize;
-  base_sink_class->start = GST_DEBUG_FUNCPTR (gst_checksum_sink_start);
-  base_sink_class->stop = GST_DEBUG_FUNCPTR (gst_checksum_sink_stop);
-  base_sink_class->set_caps = gst_checksum_sink_set_caps;
-  base_sink_class->propose_allocation = gst_checksum_sink_propose_allocation;
-  base_sink_class->render = GST_DEBUG_FUNCPTR (gst_checksum_sink_render);
+  gobject_class->set_property = gst_cksum_image_sink_set_property;
+  gobject_class->get_property = gst_cksum_image_sink_get_property;
+  gobject_class->dispose = gst_cksum_image_sink_dispose;
+  gobject_class->finalize = gst_cksum_image_sink_finalize;
+  base_sink_class->start = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_start);
+  base_sink_class->stop = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_stop);
+  base_sink_class->set_caps = gst_cksum_image_sink_set_caps;
+  base_sink_class->propose_allocation = gst_cksum_image_sink_propose_allocation;
+  base_sink_class->render = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_render);
 
   g_object_class_install_property (gobject_class, PROP_CHECKSUM_TYPE,
       g_param_spec_enum ("checksum-type", "Checksum TYpe",
@@ -130,9 +130,9 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&gst_checksum_sink_src_template));
+      gst_static_pad_template_get (&gst_cksum_image_sink_src_template));
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&gst_checksum_sink_sink_template));
+      gst_static_pad_template_get (&gst_cksum_image_sink_sink_template));
 
   gst_element_class_set_static_metadata (element_class, "Checksum sink",
       "Debug/Sink", "Calculates a checksum for buffers",
@@ -140,7 +140,7 @@ gst_checksum_sink_class_init (GstChecksumSinkClass * klass)
 }
 
 static void
-gst_checksum_sink_init (GstChecksumSink * checksumsink)
+gst_cksum_image_sink_init (GstCksumImageSink * checksumsink)
 {
   checksumsink->checksum_type = G_CHECKSUM_MD5;
   checksumsink->file_checksum = FALSE;
@@ -151,10 +151,10 @@ gst_checksum_sink_init (GstChecksumSink * checksumsink)
 }
 
 static void
-gst_checksum_sink_set_property (GObject * object, guint prop_id,
+gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstChecksumSink *sink = GST_CHECKSUM_SINK (object);
+  GstCksumImageSink *sink = GST_CKSUM_IMAGE_SINK (object);
 
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
@@ -179,10 +179,10 @@ gst_checksum_sink_set_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_checksum_sink_get_property (GObject * object, guint prop_id,
+gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstChecksumSink *sink = GST_CHECKSUM_SINK (object);
+  GstCksumImageSink *sink = GST_CKSUM_IMAGE_SINK (object);
 
   switch (prop_id) {
     case PROP_CHECKSUM_TYPE:
@@ -207,21 +207,21 @@ gst_checksum_sink_get_property (GObject * object, guint prop_id,
 }
 
 void
-gst_checksum_sink_dispose (GObject * object)
+gst_cksum_image_sink_dispose (GObject * object)
 {
   G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 void
-gst_checksum_sink_finalize (GObject * object)
+gst_cksum_image_sink_finalize (GObject * object)
 {
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static gboolean
-gst_checksum_sink_start (GstBaseSink * sink)
+gst_cksum_image_sink_start (GstBaseSink * sink)
 {
-  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (sink);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
 
   if (checksumsink->dump_output) {
     checksumsink->raw_output = fopen ("dump_output.yuv", "wb");
@@ -235,9 +235,9 @@ gst_checksum_sink_start (GstBaseSink * sink)
 }
 
 static gboolean
-gst_checksum_sink_stop (GstBaseSink * sink)
+gst_cksum_image_sink_stop (GstBaseSink * sink)
 {
-  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (sink);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
 
   if (checksumsink->file_checksum) {
     gchar *md5_cmd;
@@ -279,9 +279,9 @@ gst_checksum_sink_stop (GstBaseSink * sink)
 }
 
 static gboolean
-gst_checksum_sink_set_caps (GstBaseSink * base_sink, GstCaps * caps)
+gst_cksum_image_sink_set_caps (GstBaseSink * base_sink, GstCaps * caps)
 {
-  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (base_sink);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (base_sink);
 
   if (caps)
     gst_video_info_from_caps (&checksumsink->vinfo, caps);
@@ -290,7 +290,7 @@ gst_checksum_sink_set_caps (GstBaseSink * base_sink, GstCaps * caps)
 }
 
 static gboolean
-gst_checksum_sink_propose_allocation (GstBaseSink * base_sink, GstQuery * query)
+gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink, GstQuery * query)
 {
   gst_query_add_allocation_meta (query, GST_VIDEO_CROP_META_API_TYPE, NULL);
   gst_query_add_allocation_meta (query,
@@ -323,9 +323,9 @@ get_plane_width_and_height (guint plane, guint width, guint height, guint * w,
 }
 
 static GstFlowReturn
-gst_checksum_sink_render (GstBaseSink * sink, GstBuffer * buffer)
+gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 {
-  GstChecksumSink *checksumsink = GST_CHECKSUM_SINK (sink);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
   gchar *checksum;
   GstVideoFrame frame;
   GstVideoInfo *sinfo;

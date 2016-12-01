@@ -24,7 +24,7 @@ static gboolean
 plugin_init (GstPlugin * plugin)
 {
   return gst_element_register (plugin, "checksumsink2",
-      GST_RANK_NONE, GST_TYPE_CHECKSUM_SINK);
+      GST_RANK_NONE, GST_TYPE_CKSUM_IMAGE_SINK);
 }
 
 GstPluginDesc gst_plugin_desc = {
