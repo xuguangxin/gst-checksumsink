@@ -367,6 +367,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
   gchar *checksum;
   GstVideoFrame frame;
+  GstVideoFormat format;
   guint8 *data = NULL, *dp, *sp, *pp;
   guint j, n_planes, plane;
   guint w, h, size = 0, file_size = 0;
@@ -399,6 +400,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   size = Ysize + Usize + Vsize;
 
   n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
+  format = GST_VIDEO_FRAME_FORMAT (&frame);
 
   data = (guint8 *) g_malloc (size);
 
@@ -411,7 +413,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
       w = y_width;
       h = y_height;
     } else {
-      if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) == GST_VIDEO_FORMAT_NV12) {
+      if (format == GST_VIDEO_FORMAT_NV12) {
         w = 2 * uv_width;
         h = uv_height;
       } else {
@@ -436,18 +438,15 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
           break;
         case 1:
           pp = dp + Ysize;
-          if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
-              GST_VIDEO_FORMAT_NV12)
+          if (format == GST_VIDEO_FORMAT_NV12)
             plane_size = Usize + Vsize;
-          else if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
-              GST_VIDEO_FORMAT_I420)
+          else if (format == GST_VIDEO_FORMAT_I420)
             plane_size = Usize;
           else
             plane_size = Vsize;
           break;
         case 2:
-          if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) ==
-              GST_VIDEO_FORMAT_I420) {
+          if (format == GST_VIDEO_FORMAT_I420) {
             pp = dp + Ysize + Usize;
             plane_size = Vsize;
           } else {
