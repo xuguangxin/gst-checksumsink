@@ -252,6 +252,9 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
 
+  if (checksumsink->fd != -1)
+    close (checksumsink->fd);
+
   if (checksumsink->file_checksum) {
     gchar *md5_cmd;
 
@@ -281,8 +284,6 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
   }
 
   g_clear_pointer (&checksumsink->raw_file_name, g_free);
-  if (checksumsink->fd != -1)
-    close (checksumsink->fd);
 
   if (checksumsink->raw_output) {
     fclose (checksumsink->raw_output);
