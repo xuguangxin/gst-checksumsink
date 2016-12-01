@@ -373,8 +373,12 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   guint w, h, size = 0, file_size = 0;
   guint Ysize = 0, Usize = 0, Vsize = 0;
   guint width, height, y_width, y_height, uv_width, uv_height;
-
   GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
+
+  if (!gst_video_frame_map (&frame, &checksumsink->vinfo, buffer, GST_MAP_READ)) {
+    GST_ERROR_OBJECT (checksumsink, "failed to map frame");
+    return GST_FLOW_ERROR;
+  }
 
   if (!crop_meta) {
     width = GST_VIDEO_INFO_WIDTH (&checksumsink->vinfo);
@@ -394,11 +398,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   Vsize = Usize;
 
   size = Ysize + Usize + Vsize;
-
-  if (!gst_video_frame_map (&frame, &checksumsink->vinfo, buffer, GST_MAP_READ)) {
-    GST_ERROR_OBJECT (checksumsink, "Failed to map frame");
-    g_assert_not_reached ();
-  }
 
   sinfo = &frame.info;
   n_planes = sinfo->finfo->n_planes;
