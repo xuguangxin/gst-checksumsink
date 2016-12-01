@@ -22,6 +22,7 @@
 #include "config.h"
 #endif
 
+#include <glib/gstdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -273,14 +274,10 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
     if (md5_cmd)
       g_free (md5_cmd);
 
-    md5_cmd = g_strdup_printf ("rm %s", checksumsink->raw_file_name);
-    if (system (md5_cmd) == -1) {
-      GST_ERROR ("Failed to execute the shell command from program");
-      return FALSE;
+    if (g_unlink (checksumsink->raw_file_name) != 0) {
+      GST_WARNING_OBJECT ("failed to remove %s: %s",
+          checksumsink->raw_file_name, strerror (errno));
     }
-    if (md5_cmd)
-      g_free (md5_cmd);
-
   }
 
   g_clear_pointer (&checksumsink->raw_file_name, g_free);
