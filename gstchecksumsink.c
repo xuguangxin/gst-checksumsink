@@ -55,7 +55,7 @@ static GstStaticPadTemplate gst_cksum_image_sink_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE (GST_VIDEO_FORMATS_ALL)));
+    GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{NV12, I420, YV12}")));
 
 /* class initialization */
 
@@ -345,15 +345,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   } else {
     width = crop_meta->width;
     height = crop_meta->height;
-  }
-
-  /* only i420 and yv12 are supported */
-  if (GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_I420 &&
-      GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_YV12 &&
-      GST_VIDEO_INFO_FORMAT (&checksumsink->vinfo) != GST_VIDEO_FORMAT_NV12) {
-    GST_ERROR_OBJECT (checksumsink,
-        "Unsupported raw video format, Only supporting I420, YV12 and NV12!!");
-    return GST_FLOW_ERROR;
   }
 
   /* get width and height for luma */
