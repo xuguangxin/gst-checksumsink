@@ -57,12 +57,6 @@ GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-static GstStaticPadTemplate gst_cksum_image_sink_src_template =
-GST_STATIC_PAD_TEMPLATE ("src",
-    GST_PAD_SRC,
-    GST_PAD_ALWAYS,
-    GST_STATIC_CAPS_ANY);
-
 /* class initialization */
 
 #define GST_TYPE_CKSUM_IMAGE_SINK_HASH (gst_cksum_image_sink_hash_get_type ())
@@ -129,8 +123,6 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
           "Save the decode raw yuv into file (only support in YV12 and I420 format)",
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&gst_cksum_image_sink_src_template));
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_cksum_image_sink_sink_template));
 
