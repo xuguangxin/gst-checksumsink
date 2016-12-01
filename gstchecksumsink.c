@@ -261,9 +261,14 @@ static gboolean
 gst_cksum_image_sink_set_caps (GstBaseSink * base_sink, GstCaps * caps)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (base_sink);
+  GstVideoInfo vinfo;
 
-  if (caps)
-    gst_video_info_from_caps (&checksumsink->vinfo, caps);
+  if (!caps)
+    return FALSE;
+  if (!gst_video_info_from_caps (&vinfo, caps))
+    return FALSE;
+
+  checksumsink->vinfo = vinfo;
 
   return TRUE;
 }
