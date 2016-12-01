@@ -79,8 +79,13 @@ gst_cksum_image_sink_hash_get_type (void)
   return gtype;
 }
 
+GST_DEBUG_CATEGORY_STATIC (gst_cksum_image_sink_debug);
+#define GST_CAT_DEFAULT gst_cksum_image_sink_debug
+
 #define gst_cksum_image_sink_parent_class parent_class
-G_DEFINE_TYPE (GstCksumImageSink, gst_cksum_image_sink, GST_TYPE_VIDEO_SINK);
+G_DEFINE_TYPE_WITH_CODE (GstCksumImageSink, gst_cksum_image_sink,
+    GST_TYPE_VIDEO_SINK, GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT,
+        "checksumsink2", 0, "checksum image sink"));
 
 static void
 gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
