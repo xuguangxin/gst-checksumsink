@@ -108,8 +108,7 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
       g_param_spec_boolean ("file-checksum", "File checksum",
           "calculate checksum for the whole raw data file (MD5 only)"
           "\n\t\t\tWarning: it only works in shell prompt since it invokes a "
-          "shell command",
-          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "shell command", FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FRAME_CHECKSUM,
       g_param_spec_boolean ("frame-checksum", "Frame checksum",
@@ -129,8 +128,8 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_cksum_image_sink_sink_template));
 
-  gst_element_class_set_static_metadata (element_class, "Checksum sink",
-      "Debug/Sink", "Calculates a checksum for buffers",
+  gst_element_class_set_static_metadata (element_class, "Checksum Image sink",
+      "Debug/Sink", "Calculates a checksum for video frames",
       "David Schleef <ds@schleef.org>, "
       "Sreerenj Balachandran <sreerenj.balachandran@intel.com>");
 }
