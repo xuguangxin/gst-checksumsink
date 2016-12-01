@@ -199,9 +199,37 @@ gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
 }
 
 static gboolean
+open_raw_file (GstCksumImageSink * checksumsink)
+{
+  GError *err;
+
+  if (!checksumsink->file_checksum)
+    return TRUE;
+  if (checksumsink->raw_file_name)
+    return TRUE;
+
+  checksumsink->fd =
+      g_file_open_tmp ("tmp_XXXXXX.yuv", &checksumsink->raw_file_name, &err);
+  if (checksumsink->fd == -1) {
+    GST_ELEMENT_ERROR (checksumsink, RESOURCE, OPEN_WRITE,
+        ("failed to create output file"),
+        ("reason: %s", err ? err->message : ""));
+    g_error_free (err);
+    return FALSE;
+  }
+
+  GST_INFO_OBJECT (checksumsink, "raw file name: %s",
+      checksumsink->raw_file_name);
+  return TRUE;
+}
+
+static gboolean
 gst_cksum_image_sink_start (GstBaseSink * sink)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
+
+  if (!open_raw_file (checksumsink))
+    return FALSE;
 
   if (checksumsink->dump_output) {
     checksumsink->raw_output = fopen ("dump_output.yuv", "wb");
@@ -245,11 +273,11 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
     if (md5_cmd)
       g_free (md5_cmd);
 
-    if (checksumsink->raw_file_name)
-      g_free (checksumsink->raw_file_name);
-    if (checksumsink->fd)
-      fclose (checksumsink->fd);
   }
+
+  g_clear_pointer (&checksumsink->raw_file_name, g_free);
+  if (checksumsink->fd != -1)
+    close (checksumsink->fd);
 
   if (checksumsink->raw_output) {
     fclose (checksumsink->raw_output);
@@ -322,22 +350,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   guint width, height, y_width, y_height, uv_width, uv_height;
 
   GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
-
-  if (checksumsink->file_checksum && (checksumsink->raw_file_name == NULL)) {
-
-    /*Fixme: Use g_mkstemp_full() */
-    checksumsink->raw_file_name = g_build_filename ("tmp_XXXXXX.yuv", NULL);
-    if (checksumsink->raw_file_name == NULL) {
-      GST_ERROR_OBJECT (checksumsink, "Failed to create tmp file");
-      return GST_FLOW_ERROR;
-    }
-
-    checksumsink->fd = fopen (checksumsink->raw_file_name, "a");
-    if (checksumsink->fd == NULL) {
-      GST_ERROR_OBJECT (checksumsink, "Failed to Open tmp file");
-      return GST_FLOW_ERROR;
-    }
-  }
 
   if (!crop_meta) {
     width = GST_VIDEO_INFO_WIDTH (&checksumsink->vinfo);
@@ -445,7 +457,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   }
 
   if (checksumsink->file_checksum) {
-    if (write (fileno (checksumsink->fd), data, size) < size) {
+    if (write (checksumsink->fd, data, size) < size) {
       GST_ERROR_OBJECT (checksumsink, "Failed to write to the file");
       return GST_FLOW_ERROR;
     }
