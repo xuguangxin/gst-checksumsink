@@ -112,9 +112,8 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
       g_param_spec_boolean ("file-checksum", "File checksum",
-          "calculate checksum for the whole raw data file (MD5 only)"
-          "\n\t\t\tWarning: it only works in shell prompt since it invokes a "
-          "shell command", FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          "calculate checksum for the whole raw data file (MD5 only)",
+          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FRAME_CHECKSUM,
       g_param_spec_boolean ("frame-checksum", "Frame checksum",
@@ -251,8 +250,11 @@ gst_cksum_image_sink_start (GstBaseSink * sink)
 static gboolean
 checksum_raw_file (GstCksumImageSink * checksumsink)
 {
-  gchar *md5_cmd;
-  int ret;
+  GChecksum *csum;
+  FILE *fd;
+  guchar data[8 * BUFSIZ + 1];
+  size_t len;
+  gboolean ret;
 
   if (!checksumsink->file_checksum)
     return TRUE;
@@ -261,22 +263,33 @@ checksum_raw_file (GstCksumImageSink * checksumsink)
     return FALSE;
   }
 
-  md5_cmd = g_strdup_printf ("md5sum %s | awk '{ print $1}'",
-        checksumsink->raw_file_name);
-
-  ret = system (md5_cmd);
-  g_free (md5_cmd);
-  if (ret == -1) {
-    GST_WARNING_OBJECT (checksumsink, "failed to execute the command: %s",
-        strerror (errno));
+  ret = FALSE;
+  fd = fopen (checksumsink->raw_file_name, "r");
+  if (!fd) {
+    GST_WARNING_OBJECT (checksumsink, "failed to open %s: %s",
+        checksumsink->raw_file_name, strerror (errno));
+    goto remove_file;
   }
 
+  csum = g_checksum_new (G_CHECKSUM_MD5);
+
+  while ((len = fread (data, 1, 8 * BUFSIZ, fd)) > 0)
+    g_checksum_update (csum, data, len);
+
+  g_print ("%s\n", g_checksum_get_string (csum));
+
+  g_checksum_free (csum);
+  fclose (fd);
+
+  ret = TRUE;
+
+remove_file:
   if (g_unlink (checksumsink->raw_file_name) != 0) {
     GST_WARNING_OBJECT (checksumsink, "failed to remove %s: %s",
         checksumsink->raw_file_name, strerror (errno));
   }
 
-  return (ret != -1);
+  return ret;
 }
 
 static gboolean
