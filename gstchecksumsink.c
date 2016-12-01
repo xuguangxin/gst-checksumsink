@@ -32,8 +32,8 @@ static gboolean gst_cksum_image_sink_start (GstBaseSink * sink);
 static gboolean gst_cksum_image_sink_stop (GstBaseSink * sink);
 static gboolean gst_cksum_image_sink_set_caps (GstBaseSink * base_sink,
     GstCaps * caps);
-static gboolean gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink,
-    GstQuery * query);
+static gboolean gst_cksum_image_sink_propose_allocation (GstBaseSink *
+    base_sink, GstQuery * query);
 static GstFlowReturn gst_cksum_image_sink_show_frame (GstVideoSink * sink,
     GstBuffer * buffer);
 static void gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
@@ -106,23 +106,24 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
       g_param_spec_boolean ("file-checksum", "File checksum",
-          "Find Checksum for the whole raw data file, (only supports MD5)\n"
-          "			Warning: This will only work in shell prompt since the program invokes shell command",
+          "calculate checksum for the whole raw data file (MD5 only)"
+          "\n\t\t\tWarning: it only works in shell prompt since it invokes a "
+          "shell command",
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FRAME_CHECKSUM,
       g_param_spec_boolean ("frame-checksum", "Frame checksum",
-          "Find Checksum for each Frame", TRUE,
+          "calculate checksum per frame", TRUE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_PLANE_CHECKSUM,
       g_param_spec_boolean ("plane-checksum", "Plane checksum",
-          "Find Checksum for each Plane", FALSE,
+          "calculate checksum per plane", FALSE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_RAW_OUTPUT,
       g_param_spec_boolean ("dump-output", "Dump output",
-          "Save the decode raw yuv into file (only support in YV12 and I420 format)",
+          "save decoded raw frames into file (YV12 and I420 only)",
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
@@ -130,7 +131,8 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 
   gst_element_class_set_static_metadata (element_class, "Checksum sink",
       "Debug/Sink", "Calculates a checksum for buffers",
-      "David Schleef <ds@schleef.org>, Sreerenj Balachandran <sreerenj.balachandran@intel.com>");
+      "David Schleef <ds@schleef.org>, "
+      "Sreerenj Balachandran <sreerenj.balachandran@intel.com>");
 }
 
 static void
@@ -274,7 +276,8 @@ gst_cksum_image_sink_set_caps (GstBaseSink * base_sink, GstCaps * caps)
 }
 
 static gboolean
-gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink, GstQuery * query)
+gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink,
+    GstQuery * query)
 {
   gst_query_add_allocation_meta (query, GST_VIDEO_CROP_META_API_TYPE, NULL);
   gst_query_add_allocation_meta (query,
@@ -431,8 +434,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
       }
 
       checksum =
-          g_compute_checksum_for_data (checksumsink->hash, pp,
-          plane_size);
+          g_compute_checksum_for_data (checksumsink->hash, pp, plane_size);
       g_print ("%s  ", checksum);
       g_free (checksum);
     }
@@ -447,8 +449,7 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
     g_print ("\n");
 
   if (checksumsink->frame_checksum) {
-    checksum =
-        g_compute_checksum_for_data (checksumsink->hash, data, size);
+    checksum = g_compute_checksum_for_data (checksumsink->hash, data, size);
     g_print ("FrameChecksum %s\n", checksum);
     g_free (checksum);
   }
