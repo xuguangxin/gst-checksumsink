@@ -53,9 +53,6 @@ gst_checksum_sink_checksum_get_type (void)
   return checksum_type;
 }
 
-static void gst_cksum_image_sink_dispose (GObject * object);
-static void gst_cksum_image_sink_finalize (GObject * object);
-
 static gboolean gst_cksum_image_sink_start (GstBaseSink * sink);
 static gboolean gst_cksum_image_sink_stop (GstBaseSink * sink);
 static gboolean gst_cksum_image_sink_set_caps (GstBaseSink * base_sink,
@@ -95,8 +92,6 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 
   gobject_class->set_property = gst_cksum_image_sink_set_property;
   gobject_class->get_property = gst_cksum_image_sink_get_property;
-  gobject_class->dispose = gst_cksum_image_sink_dispose;
-  gobject_class->finalize = gst_cksum_image_sink_finalize;
   base_sink_class->start = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_start);
   base_sink_class->stop = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_stop);
   base_sink_class->set_caps = gst_cksum_image_sink_set_caps;
@@ -204,18 +199,6 @@ gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
   }
-}
-
-void
-gst_cksum_image_sink_dispose (GObject * object)
-{
-  G_OBJECT_CLASS (parent_class)->dispose (object);
-}
-
-void
-gst_cksum_image_sink_finalize (GObject * object)
-{
-  G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static gboolean
