@@ -24,10 +24,7 @@
 #include <gst/gst.h>
 #include <gst/base/gstbasesink.h>
 #include <gst/video/video.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 
 G_BEGIN_DECLS
 
@@ -46,7 +43,7 @@ struct _GstCksumImageSink
   GstVideoInfo vinfo;
 
   /* properties */
-  GChecksumType checksum_type;
+  GChecksumType hash;
   gboolean file_checksum;
   gboolean frame_checksum;
   gboolean plane_checksum;

@@ -22,36 +22,11 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "gstchecksumsink.h"
-enum
-{
-  PROP_0,
-  PROP_CHECKSUM_TYPE,
-  PROP_FILE_CHECKSUM,
-  PROP_FRAME_CHECKSUM,
-  PROP_PLANE_CHECKSUM,
-  PROP_RAW_OUTPUT
-};
-
-/* create a GType for GChecksumType */
-#define GST_CHECKSUM_SINK_CHECKSUM_TYPE (gst_checksum_sink_checksum_get_type())
-static GType
-gst_checksum_sink_checksum_get_type (void)
-{
-  static GType checksum_type = 0;
-
-  static const GEnumValue checksum_values[] = {
-    {G_CHECKSUM_MD5, "Use the MD5 hashing algorithm", "md5"},
-    {G_CHECKSUM_SHA1, "Use the SHA-1 hashing algorithm", "sha1"},
-    {G_CHECKSUM_SHA256, "Use the SHA-256 hashing algorithm", "sha256"},
-    {0, NULL, NULL}
-  };
-
-  if (!checksum_type)
-    checksum_type = g_enum_register_static ("GChecksumType", checksum_values);
-
-  return checksum_type;
-}
 
 static gboolean gst_cksum_image_sink_start (GstBaseSink * sink);
 static gboolean gst_cksum_image_sink_stop (GstBaseSink * sink);
@@ -66,6 +41,16 @@ static void gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
 static void gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
+enum
+{
+  PROP_0,
+  PROP_HASH,
+  PROP_FILE_CHECKSUM,
+  PROP_FRAME_CHECKSUM,
+  PROP_PLANE_CHECKSUM,
+  PROP_RAW_OUTPUT
+};
+
 static GstStaticPadTemplate gst_cksum_image_sink_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -79,6 +64,26 @@ GST_STATIC_PAD_TEMPLATE ("src",
     GST_STATIC_CAPS_ANY);
 
 /* class initialization */
+
+#define GST_TYPE_CKSUM_IMAGE_SINK_HASH (gst_cksum_image_sink_hash_get_type ())
+static GType
+gst_cksum_image_sink_hash_get_type (void)
+{
+  static GType gtype = 0;
+
+  if (gtype == 0) {
+    static const GEnumValue values[] = {
+      {G_CHECKSUM_MD5, "MD5", "md5"},
+      {G_CHECKSUM_SHA1, "SHA-1", "sha1"},
+      {G_CHECKSUM_SHA256, "SHA-256", "sha256"},
+      {G_CHECKSUM_SHA512, "SHA-512", "sha512"},
+      {0, NULL, NULL},
+    };
+
+    gtype = g_enum_register_static ("GstCksumImageSinkHash", values);
+  }
+  return gtype;
+}
 
 #define gst_cksum_image_sink_parent_class parent_class
 G_DEFINE_TYPE (GstCksumImageSink, gst_cksum_image_sink, GST_TYPE_BASE_SINK);
@@ -98,10 +103,10 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
   base_sink_class->propose_allocation = gst_cksum_image_sink_propose_allocation;
   base_sink_class->render = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_render);
 
-  g_object_class_install_property (gobject_class, PROP_CHECKSUM_TYPE,
-      g_param_spec_enum ("checksum-type", "Checksum TYpe",
-          "Checksum algorithm to use", GST_CHECKSUM_SINK_CHECKSUM_TYPE,
-          G_CHECKSUM_MD5, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (gobject_class, PROP_HASH,
+      g_param_spec_enum ("hash", "Hash", "Checksum type",
+          GST_TYPE_CKSUM_IMAGE_SINK_HASH, G_CHECKSUM_MD5,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_FILE_CHECKSUM,
       g_param_spec_boolean ("file-checksum", "File checksum",
@@ -137,35 +142,32 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
 static void
 gst_cksum_image_sink_init (GstCksumImageSink * checksumsink)
 {
-  checksumsink->checksum_type = G_CHECKSUM_MD5;
-  checksumsink->file_checksum = FALSE;
-  checksumsink->frame_checksum = TRUE;
-  checksumsink->plane_checksum = FALSE;
-  checksumsink->dump_output = FALSE;
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
+  checksumsink->hash = G_CHECKSUM_MD5;
+  checksumsink->frame_checksum = TRUE;
 }
 
 static void
 gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstCksumImageSink *sink = GST_CKSUM_IMAGE_SINK (object);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (object);
 
   switch (prop_id) {
-    case PROP_CHECKSUM_TYPE:
-      sink->checksum_type = g_value_get_enum (value);
+    case PROP_HASH:
+      checksumsink->hash = g_value_get_enum (value);
       break;
     case PROP_FILE_CHECKSUM:
-      sink->file_checksum = g_value_get_boolean (value);
+      checksumsink->file_checksum = g_value_get_boolean (value);
       break;
     case PROP_FRAME_CHECKSUM:
-      sink->frame_checksum = g_value_get_boolean (value);
+      checksumsink->frame_checksum = g_value_get_boolean (value);
       break;
     case PROP_PLANE_CHECKSUM:
-      sink->plane_checksum = g_value_get_boolean (value);
+      checksumsink->plane_checksum = g_value_get_boolean (value);
       break;
     case PROP_RAW_OUTPUT:
-      sink->dump_output = g_value_get_boolean (value);
+      checksumsink->dump_output = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -177,23 +179,23 @@ static void
 gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstCksumImageSink *sink = GST_CKSUM_IMAGE_SINK (object);
+  GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (object);
 
   switch (prop_id) {
-    case PROP_CHECKSUM_TYPE:
-      g_value_set_enum (value, sink->checksum_type);
+    case PROP_HASH:
+      g_value_set_enum (value, checksumsink->hash);
       break;
     case PROP_FILE_CHECKSUM:
-      g_value_set_boolean (value, sink->file_checksum);
+      g_value_set_boolean (value, checksumsink->file_checksum);
       break;
     case PROP_FRAME_CHECKSUM:
-      g_value_set_boolean (value, sink->frame_checksum);
+      g_value_set_boolean (value, checksumsink->frame_checksum);
       break;
     case PROP_PLANE_CHECKSUM:
-      g_value_set_boolean (value, sink->plane_checksum);
+      g_value_set_boolean (value, checksumsink->plane_checksum);
       break;
     case PROP_RAW_OUTPUT:
-      g_value_set_boolean (value, sink->dump_output);
+      g_value_set_boolean (value, checksumsink->dump_output);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -430,7 +432,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
       }
 
       checksum =
-          g_compute_checksum_for_data (checksumsink->checksum_type, pp,
+          g_compute_checksum_for_data (checksumsink->hash, pp,
           plane_size);
       g_print ("%s  ", checksum);
       g_free (checksum);
@@ -447,7 +449,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 
   if (checksumsink->frame_checksum) {
     checksum =
-        g_compute_checksum_for_data (checksumsink->checksum_type, data, size);
+        g_compute_checksum_for_data (checksumsink->hash, data, size);
     g_print ("FrameChecksum %s\n", checksum);
     g_free (checksum);
   }
