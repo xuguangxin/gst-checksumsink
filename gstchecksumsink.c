@@ -398,7 +398,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   guint w, h, size = 0, file_size = 0;
   guint Ysize = 0, Usize = 0, Vsize = 0;
   guint width, height, y_width, y_height, uv_width, uv_height;
-  GstVideoCropMeta *const crop_meta = gst_buffer_get_video_crop_meta (buffer);
 
   vinfo = &checksumsink->vinfo;
   if (!gst_video_frame_map (&frame, vinfo, buffer, GST_MAP_READ)) {
@@ -406,13 +405,8 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
     return GST_FLOW_ERROR;
   }
 
-  if (!crop_meta) {
-    width = GST_VIDEO_FRAME_WIDTH (&frame);
-    height = GST_VIDEO_FRAME_HEIGHT (&frame);
-  } else {
-    width = crop_meta->width;
-    height = crop_meta->height;
-  }
+  width = GST_VIDEO_FRAME_WIDTH (&frame);
+  height = GST_VIDEO_FRAME_HEIGHT (&frame);
 
   /* get width and height for luma */
   get_plane_width_and_height (0, width, height, &y_width, &y_height);
