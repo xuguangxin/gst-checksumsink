@@ -407,6 +407,8 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
 
   width = GST_VIDEO_FRAME_WIDTH (&frame);
   height = GST_VIDEO_FRAME_HEIGHT (&frame);
+  n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
+  format = GST_VIDEO_FRAME_FORMAT (&frame);
 
   /* get width and height for luma */
   get_plane_width_and_height (0, width, height, &y_width, &y_height);
@@ -418,9 +420,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   Vsize = Usize;
 
   size = Ysize + Usize + Vsize;
-
-  n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
-  format = GST_VIDEO_FRAME_FORMAT (&frame);
 
   if (!(data = alloc_data (checksumsink, size))) {
     GST_ERROR_OBJECT (checksumsink, "failed to allocate buffer");
