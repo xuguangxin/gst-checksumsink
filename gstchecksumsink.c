@@ -236,14 +236,6 @@ gst_cksum_image_sink_start (GstBaseSink * sink)
   if (!open_raw_file (checksumsink))
     return FALSE;
 
-  if (checksumsink->dump_output) {
-    checksumsink->raw_output = fopen ("dump_output.yuv", "wb");
-    if (checksumsink->raw_output == NULL) {
-      GST_ERROR_OBJECT (checksumsink, "Failed to create dump_output.yuv file");
-      return FALSE;
-    }
-  }
-
   return TRUE;
 }
 
@@ -284,7 +276,9 @@ checksum_raw_file (GstCksumImageSink * checksumsink)
   ret = TRUE;
 
 remove_file:
-  if (g_unlink (checksumsink->raw_file_name) != 0) {
+  /* don't remove if we expect to keep the raw output */
+  if (!checksumsink->dump_output
+        && g_unlink (checksumsink->raw_file_name) != 0) {
     GST_WARNING_OBJECT (checksumsink, "failed to remove %s: %s",
         checksumsink->raw_file_name, strerror (errno));
   }
@@ -306,10 +300,6 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
 
   g_clear_pointer (&checksumsink->data, g_free);
   checksumsink->data_size = 0;
-
-  if (checksumsink->raw_output) {
-    fclose (checksumsink->raw_output);
-  }
 
   return TRUE;
 }
@@ -434,10 +424,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
       g_print ("FrameChecksum %s\n", csum);
       g_free (csum);
     }
-  }
-
-  if (checksumsink->dump_output && checksumsink->raw_output) {
-    fwrite (data, 1, size, checksumsink->raw_output);
   }
 
   file_size = 0;

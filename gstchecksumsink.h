@@ -50,7 +50,6 @@ struct _GstCksumImageSink
   gboolean dump_output;
 
   gchar *raw_file_name;
-  FILE *raw_output;
   gint fd;
 
   guint8 *data;
