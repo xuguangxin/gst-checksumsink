@@ -362,42 +362,15 @@ alloc_data (GstCksumImageSink * checksumsink, gsize size)
   return NULL;
 }
 
-static void
-get_plane_width_and_height (guint plane, guint width, guint height, guint * w,
-    guint * h)
-{
-  if (plane != 0) {
-    /* u_v width */
-    if (width % 2 != 0)
-      *w = (width + 1) / 2;
-    else
-      *w = width / 2;
-
-    /* u_v heihgt */
-    if (height % 2 != 0)
-      *h = (height + 1) / 2;
-    else
-      *h = height / 2;
-
-  } else {
-    *w = width;
-    *h = height;
-  }
-}
-
 static GstFlowReturn
 gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
-  gchar *checksum;
+  gchar *csum;
   GstVideoFrame frame;
-  GstVideoFormat format;
   GstVideoInfo *vinfo;
-  guint8 *data = NULL, *dp, *sp, *pp;
-  guint j, n_planes, plane;
-  guint w, h, size = 0, file_size = 0;
-  guint Ysize = 0, Usize = 0, Vsize = 0;
-  guint width, height, y_width, y_height, uv_width, uv_height;
+  guint8 *data;
+  gsize size, file_size;
 
   vinfo = &checksumsink->vinfo;
   if (!gst_video_frame_map (&frame, vinfo, buffer, GST_MAP_READ)) {
@@ -405,100 +378,69 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
     return GST_FLOW_ERROR;
   }
 
-  width = GST_VIDEO_FRAME_WIDTH (&frame);
-  height = GST_VIDEO_FRAME_HEIGHT (&frame);
-  n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
-  format = GST_VIDEO_FRAME_FORMAT (&frame);
-
-  /* get width and height for luma */
-  get_plane_width_and_height (0, width, height, &y_width, &y_height);
-  /* get width and height for chroma */
-  get_plane_width_and_height (1, width, height, &uv_width, &uv_height);
-
-  Ysize = y_width * y_height;
-  Usize = uv_width * uv_height;
-  Vsize = Usize;
-
-  size = Ysize + Usize + Vsize;
-
-  if (!(data = alloc_data (checksumsink, size))) {
+  if (!(data = alloc_data (checksumsink, GST_VIDEO_FRAME_SIZE (&frame)))) {
     GST_ERROR_OBJECT (checksumsink, "failed to allocate buffer");
     return GST_FLOW_ERROR;
   }
 
-  dp = data;
-  for (plane = 0; plane < n_planes; plane++) {
+  {
+    guint j, n_planes, plane;
+    guint8 *dp;
 
-    sp = GST_VIDEO_FRAME_PLANE_DATA (&frame, plane);
+    dp = data;
+    size = 0;
+    n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
 
-    if (plane == 0) {
-      w = y_width;
-      h = y_height;
-    } else {
-      if (format == GST_VIDEO_FORMAT_NV12) {
-        w = 2 * uv_width;
-        h = uv_height;
-      } else {
-        w = uv_width;
-        h = uv_height;
+    for (plane = 0; plane < n_planes; plane++) {
+      gpointer pd = GST_VIDEO_FRAME_PLANE_DATA (&frame, plane);
+
+      /* FIXME: assumes subsampling of component N is the same as
+       * plane N, which is currently true for all formats we have but
+       * it might not be in the future. */
+      gint w = GST_VIDEO_FRAME_COMP_WIDTH (&frame, plane)
+          * GST_VIDEO_FRAME_COMP_PSTRIDE (&frame, plane);
+      /* FIXME: workaround for complex formats like v210, UYVP and
+       * IYU1 that have pstride == 0 */
+      if (w == 0)
+        w = MIN (GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane),
+            GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane));
+      gint h = GST_VIDEO_FRAME_COMP_HEIGHT (&frame, plane);
+      gint ps = GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
+
+      /* current plane size and data required for plane_checksum */
+      guint8 *cdp = dp;
+      gsize psz = 0;
+
+      for (j = 0; j < h; j++) {
+        memcpy (dp, pd, w);
+        dp += w;
+        pd += ps;
+        size += w;
+        psz += w;
+      }
+
+      if (checksumsink->plane_checksum) {
+        csum = g_compute_checksum_for_data (checksumsink->hash, cdp, psz);
+        g_print ("%s  ", csum);
+        g_free (csum);
       }
     }
 
-    for (j = 0; j < h; j++) {
-      memcpy (data, sp, w);
-      data += w;
-      sp += GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
-    }
+    if (checksumsink->plane_checksum)
+      g_print ("\n");
 
-    if (checksumsink->plane_checksum) {
-      guint plane_size;
-
-      switch (plane) {
-        case 0:
-          pp = dp;
-          plane_size = Ysize;
-          break;
-        case 1:
-          pp = dp + Ysize;
-          if (format == GST_VIDEO_FORMAT_NV12)
-            plane_size = Usize + Vsize;
-          else if (format == GST_VIDEO_FORMAT_I420)
-            plane_size = Usize;
-          else
-            plane_size = Vsize;
-          break;
-        case 2:
-          if (format == GST_VIDEO_FORMAT_I420) {
-            pp = dp + Ysize + Usize;
-            plane_size = Vsize;
-          } else {
-            pp = dp + Ysize + Vsize;
-            plane_size = Usize;
-          }
-          break;
-      }
-
-      checksum =
-          g_compute_checksum_for_data (checksumsink->hash, pp, plane_size);
-      g_print ("%s  ", checksum);
-      g_free (checksum);
+    if (checksumsink->frame_checksum) {
+      csum = g_compute_checksum_for_data (checksumsink->hash, data, size);
+      g_print ("FrameChecksum %s\n", csum);
+      g_free (csum);
     }
   }
-  data = dp;
 
   if (checksumsink->dump_output && checksumsink->raw_output) {
     fwrite (data, 1, size, checksumsink->raw_output);
   }
 
-  if (checksumsink->plane_checksum)
-    g_print ("\n");
-
-  if (checksumsink->frame_checksum) {
-    checksum = g_compute_checksum_for_data (checksumsink->hash, data, size);
-    g_print ("FrameChecksum %s\n", checksum);
-    g_free (checksum);
-  }
-
+  file_size = 0;
   if (checksumsink->file_checksum) {
     if (write (checksumsink->fd, data, size) < size) {
       GST_ERROR_OBJECT (checksumsink, "Failed to write to the file");
