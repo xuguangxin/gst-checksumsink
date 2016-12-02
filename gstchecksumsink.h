@@ -24,7 +24,6 @@
 #include <gst/gst.h>
 #include <gst/video/gstvideosink.h>
 #include <gst/video/video.h>
-#include <stdio.h>
 
 G_BEGIN_DECLS
 
