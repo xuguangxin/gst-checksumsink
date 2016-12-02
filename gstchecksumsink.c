@@ -304,6 +304,9 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
 
   g_clear_pointer (&checksumsink->raw_file_name, g_free);
 
+  g_clear_pointer (&checksumsink->data, g_free);
+  checksumsink->data_size = 0;
+
   if (checksumsink->raw_output) {
     fclose (checksumsink->raw_output);
   }
@@ -336,6 +339,27 @@ gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink,
       GST_VIDEO_OVERLAY_COMPOSITION_META_API_TYPE, NULL);
   gst_query_add_allocation_meta (query, GST_VIDEO_META_API_TYPE, NULL);
   return TRUE;
+}
+
+static guint8 *
+alloc_data (GstCksumImageSink * checksumsink, gsize size)
+{
+  if (checksumsink->data && checksumsink->data_size == size)
+    return checksumsink->data;
+
+  if (checksumsink->data && checksumsink->data_size != size) {
+    checksumsink->data = g_realloc (checksumsink->data, size);
+    checksumsink->data_size = size;
+    return checksumsink->data;
+  }
+
+  if (!checksumsink->data && size > 0) {
+    checksumsink->data = g_malloc (size);
+    checksumsink->data_size = size;
+    return checksumsink->data;
+  }
+
+  return NULL;
 }
 
 static void
@@ -404,7 +428,10 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
   n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
   format = GST_VIDEO_FRAME_FORMAT (&frame);
 
-  data = (guint8 *) g_malloc (size);
+  if (!(data = alloc_data (checksumsink, size))) {
+    GST_ERROR_OBJECT (checksumsink, "failed to allocate buffer");
+    return GST_FLOW_ERROR;
+  }
 
   dp = data;
   for (plane = 0; plane < n_planes; plane++) {
@@ -487,7 +514,6 @@ gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
     file_size += size;
   }
 
-  g_free (data);
   gst_video_frame_unmap (&frame);
 
   return GST_FLOW_OK;

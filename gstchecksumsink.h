@@ -52,6 +52,9 @@ struct _GstCksumImageSink
   gchar *raw_file_name;
   FILE *raw_output;
   gint fd;
+
+  guint8 *data;
+  gsize data_size;
 };
 
 struct _GstCksumImageSinkClass
