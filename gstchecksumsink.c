@@ -252,7 +252,7 @@ checksum_raw_file (GstCksumImageSink * checksumsink)
 {
   GChecksum *csum;
   FILE *fd;
-  guchar data[8 * BUFSIZ + 1];
+  guchar data[64 * BUFSIZ + 1];
   size_t len;
   gboolean ret;
 
@@ -273,7 +273,7 @@ checksum_raw_file (GstCksumImageSink * checksumsink)
 
   csum = g_checksum_new (G_CHECKSUM_MD5);
 
-  while ((len = fread (data, 1, 8 * BUFSIZ, fd)) > 0)
+  while ((len = fread (data, 1, 64 * BUFSIZ, fd)) > 0)
     g_checksum_update (csum, data, len);
 
   g_print ("%s\n", g_checksum_get_string (csum));
