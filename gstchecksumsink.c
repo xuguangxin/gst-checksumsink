@@ -34,7 +34,7 @@ static gboolean gst_cksum_image_sink_set_caps (GstBaseSink * base_sink,
     GstCaps * caps);
 static gboolean gst_cksum_image_sink_propose_allocation (GstBaseSink *
     base_sink, GstQuery * query);
-static GstFlowReturn gst_cksum_image_sink_show_frame (GstVideoSink * sink,
+static GstFlowReturn gst_cksum_image_sink_render (GstBaseSink * sink,
     GstBuffer * buffer);
 static void gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec);
@@ -93,7 +93,6 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstBaseSinkClass *base_sink_class = GST_BASE_SINK_CLASS (klass);
-  GstVideoSinkClass *video_sink_class = GST_VIDEO_SINK_CLASS (klass);
 
   gobject_class->set_property = gst_cksum_image_sink_set_property;
   gobject_class->get_property = gst_cksum_image_sink_get_property;
@@ -101,8 +100,7 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
   base_sink_class->stop = GST_DEBUG_FUNCPTR (gst_cksum_image_sink_stop);
   base_sink_class->set_caps = gst_cksum_image_sink_set_caps;
   base_sink_class->propose_allocation = gst_cksum_image_sink_propose_allocation;
-
-  video_sink_class->show_frame = gst_cksum_image_sink_show_frame;
+  base_sink_class->render = gst_cksum_image_sink_render;
 
   g_object_class_install_property (gobject_class, PROP_HASH,
       g_param_spec_enum ("hash", "Hash", "Checksum type",
@@ -352,7 +350,7 @@ alloc_data (GstCksumImageSink * checksumsink, gsize size)
 }
 
 static GstFlowReturn
-gst_cksum_image_sink_show_frame (GstVideoSink * sink, GstBuffer * buffer)
+gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
   gchar *csum;
