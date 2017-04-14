@@ -288,8 +288,10 @@ gst_cksum_image_sink_stop (GstBaseSink * sink)
 {
   GstCksumImageSink *checksumsink = GST_CKSUM_IMAGE_SINK (sink);
 
-  if (checksumsink->fd != -1)
+  if (checksumsink->fd != -1) {
+    fsync (checksumsink->fd);
     close (checksumsink->fd);
+  }
 
   checksum_raw_file (checksumsink);
 
@@ -357,7 +359,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   GstVideoFrame frame;
   GstVideoInfo *vinfo;
   guint8 *data;
-  gsize size, file_size;
+  gsize size;
 
   vinfo = &checksumsink->vinfo;
   if (!gst_video_frame_map (&frame, vinfo, buffer, GST_MAP_READ)) {
@@ -423,13 +425,20 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     }
   }
 
-  file_size = 0;
   if (checksumsink->file_checksum) {
-    if (write (checksumsink->fd, data, size) < size) {
-      GST_ERROR_OBJECT (checksumsink, "Failed to write to the file");
-      return GST_FLOW_ERROR;
-    }
-    file_size += size;
+    do {
+      ssize_t written = write (checksumsink->fd, data, size);
+      if (written == -1) {
+        GST_ELEMENT_ERROR (checksumsink, RESOURCE, WRITE,
+            ("Failed to write to the file: %s", g_strerror (errno)), (NULL));
+        return GST_FLOW_ERROR;
+      } else if (written < size) {
+        data = &data[written + 1];
+        size = size - written;
+      } else if (written == size) {
+        break;
+      }
+    } while (TRUE);
   }
 
   gst_video_frame_unmap (&frame);
