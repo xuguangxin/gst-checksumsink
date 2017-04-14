@@ -79,6 +79,21 @@ gst_cksum_image_sink_hash_get_type (void)
   return gtype;
 }
 
+#define CAT_PERFORMANCE _get_perf_category()
+static inline GstDebugCategory *
+_get_perf_category (void)
+{
+  static GstDebugCategory *cat = NULL;
+
+  if (g_once_init_enter (&cat)) {
+    GstDebugCategory *c;
+
+    GST_DEBUG_CATEGORY_GET (c, "GST_PERFORMANCE");
+    g_once_init_leave (&cat, c);
+  }
+  return cat;
+}
+
 GST_DEBUG_CATEGORY_STATIC (gst_cksum_image_sink_debug);
 #define GST_CAT_DEFAULT gst_cksum_image_sink_debug
 
@@ -399,6 +414,8 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
       guint8 *cdp = dp;
       gsize psz = 0;
 
+      GST_CAT_DEBUG_OBJECT (CAT_PERFORMANCE, checksumsink,
+          "copy plane %d, w:%d h:%d ", plane, w, h);
       for (j = 0; j < h; j++) {
         memcpy (dp, pd, w);
         dp += w;
@@ -425,6 +442,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   }
 
   if (checksumsink->file_checksum) {
+    GST_MEMDUMP ("frame", data, size);
     do {
       ssize_t written = write (checksumsink->fd, data, size);
       if (written == -1) {
