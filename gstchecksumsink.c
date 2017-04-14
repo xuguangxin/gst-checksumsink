@@ -391,8 +391,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
       /* FIXME: workaround for complex formats like v210, UYVP and
        * IYU1 that have pstride == 0 */
       if (w == 0)
-        w = MIN (GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane),
-            GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane));
+        w = GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
       gint h = GST_VIDEO_FRAME_COMP_HEIGHT (&frame, plane);
       gint ps = GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
 
