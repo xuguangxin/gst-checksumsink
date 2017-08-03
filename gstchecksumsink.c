@@ -444,6 +444,10 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   if (checksumsink->file_checksum || checksumsink->dump_output) {
     GST_MEMDUMP ("frame", data, size);
     do {
+      if (size != GST_VIDEO_FRAME_SIZE (&frame)) {
+        GST_WARNING ("size are different! %lu != %lu", size,
+            GST_VIDEO_FRAME_SIZE (&frame));
+      }
       ssize_t written = write (checksumsink->fd, data, size);
       if (written == -1) {
         GST_ELEMENT_ERROR (checksumsink, RESOURCE, WRITE,
