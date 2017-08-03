@@ -220,7 +220,7 @@ open_raw_file (GstCksumImageSink * checksumsink)
 {
   GError *err;
 
-  if (!checksumsink->file_checksum)
+  if (!checksumsink->file_checksum && !checksumsink->dump_output)
     return TRUE;
   if (checksumsink->raw_file_name)
     return TRUE;
@@ -441,7 +441,7 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     }
   }
 
-  if (checksumsink->file_checksum) {
+  if (checksumsink->file_checksum || checksumsink->dump_output) {
     GST_MEMDUMP ("frame", data, size);
     do {
       ssize_t written = write (checksumsink->fd, data, size);
