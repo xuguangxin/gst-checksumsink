@@ -22,8 +22,11 @@
 #include "config.h"
 #endif
 
+#include <fcntl.h>
 #include <glib/gstdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "gstchecksumsink.h"
@@ -48,7 +51,8 @@ enum
   PROP_FILE_CHECKSUM,
   PROP_FRAME_CHECKSUM,
   PROP_PLANE_CHECKSUM,
-  PROP_RAW_OUTPUT
+  PROP_RAW_OUTPUT,
+  PROP_RAW_LOCATION
 };
 
 static GstStaticPadTemplate gst_cksum_image_sink_sink_template =
@@ -142,6 +146,11 @@ gst_cksum_image_sink_class_init (GstCksumImageSinkClass * klass)
           "save decoded raw frames into file (YV12 and I420 only)",
           FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_RAW_LOCATION,
+      g_param_spec_string ("dump-location", "File Location",
+          "Location of the file to write decoded raw frames",
+          NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_cksum_image_sink_sink_template));
 
@@ -157,6 +166,7 @@ gst_cksum_image_sink_init (GstCksumImageSink * checksumsink)
   gst_base_sink_set_sync (GST_BASE_SINK (checksumsink), FALSE);
   checksumsink->hash = G_CHECKSUM_MD5;
   checksumsink->frame_checksum = TRUE;
+  checksumsink->fd = -1;
 }
 
 static void
@@ -180,6 +190,9 @@ gst_cksum_image_sink_set_property (GObject * object, guint prop_id,
       break;
     case PROP_RAW_OUTPUT:
       checksumsink->dump_output = g_value_get_boolean (value);
+      break;
+    case PROP_RAW_LOCATION:
+      checksumsink->raw_file_name = g_strdup (g_value_get_string (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -209,6 +222,9 @@ gst_cksum_image_sink_get_property (GObject * object, guint prop_id,
     case PROP_RAW_OUTPUT:
       g_value_set_boolean (value, checksumsink->dump_output);
       break;
+    case PROP_RAW_LOCATION:
+      g_value_set_string (value, checksumsink->raw_file_name);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -222,11 +238,16 @@ open_raw_file (GstCksumImageSink * checksumsink)
 
   if (!checksumsink->file_checksum && !checksumsink->dump_output)
     return TRUE;
-  if (checksumsink->raw_file_name)
-    return TRUE;
 
-  checksumsink->fd =
-      g_file_open_tmp ("tmp_XXXXXX.yuv", &checksumsink->raw_file_name, &err);
+  if (checksumsink->fd != -1)
+    return TRUE;
+  else if (checksumsink->raw_file_name)
+    checksumsink->fd = g_open (checksumsink->raw_file_name, O_WRONLY | O_CREAT,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+  else
+    checksumsink->fd =
+        g_file_open_tmp ("tmp_XXXXXX.yuv", &checksumsink->raw_file_name, &err);
+
   if (checksumsink->fd == -1) {
     GST_ELEMENT_ERROR (checksumsink, RESOURCE, OPEN_WRITE,
         ("failed to create output file"),
@@ -289,8 +310,7 @@ checksum_raw_file (GstCksumImageSink * checksumsink)
 
 remove_file:
   /* don't remove if we expect to keep the raw output */
-  if (!checksumsink->dump_output
-        && g_unlink (checksumsink->raw_file_name) != 0) {
+  if (!checksumsink->dump_output && g_unlink (checksumsink->raw_file_name) != 0) {
     GST_WARNING_OBJECT (checksumsink, "failed to remove %s: %s",
         checksumsink->raw_file_name, strerror (errno));
   }
