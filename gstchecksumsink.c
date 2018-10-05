@@ -59,7 +59,7 @@ static GstStaticPadTemplate gst_cksum_image_sink_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{NV12, I420, YV12}")));
+    GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{NV12, I420, YV12, P010_10LE}")));
 
 /* class initialization */
 
