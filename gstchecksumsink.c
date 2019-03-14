@@ -60,7 +60,7 @@ GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE
-        ("{NV12, I420, YV12, AYUV, YUY2, P010_10LE}")));
+        ("{NV12, I420, YV12, AYUV, YUY2, ARGB, BGRA, P010_10LE}")));
 
 /* class initialization */
 
