@@ -359,9 +359,6 @@ static gboolean
 gst_cksum_image_sink_propose_allocation (GstBaseSink * base_sink,
     GstQuery * query)
 {
-  gst_query_add_allocation_meta (query, GST_VIDEO_CROP_META_API_TYPE, NULL);
-  gst_query_add_allocation_meta (query,
-      GST_VIDEO_OVERLAY_COMPOSITION_META_API_TYPE, NULL);
   gst_query_add_allocation_meta (query, GST_VIDEO_META_API_TYPE, NULL);
   return TRUE;
 }
