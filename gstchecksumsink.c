@@ -407,6 +407,8 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
   }
 
   {
+    gint x, y, width, height;
+    GstVideoCropMeta* crop;
     guint j, n_planes, plane;
     guint8 *dp;
 
@@ -414,19 +416,36 @@ gst_cksum_image_sink_render (GstBaseSink * sink, GstBuffer * buffer)
     size = 0;
     n_planes = GST_VIDEO_FRAME_N_PLANES (&frame);
 
+    crop = gst_buffer_get_video_crop_meta(buffer);
+    if (crop) {
+      x = crop->x;
+      y = crop->y;
+      width = crop->width;
+      height = crop->height;
+    } else {
+      x = y = 0;
+      width = GST_VIDEO_FRAME_COMP_WIDTH(&frame, 0);
+      height = GST_VIDEO_FRAME_COMP_HEIGHT(&frame, 0);
+    }
+
     for (plane = 0; plane < n_planes; plane++) {
-      gpointer pd = GST_VIDEO_FRAME_PLANE_DATA (&frame, plane);
+      gint w;
+      const GstVideoFormatInfo* info = vinfo->finfo;
+      gpointer pd = GST_VIDEO_FRAME_PLANE_DATA (&frame, plane) +
+        GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info, plane, y) * GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
 
       /* FIXME: assumes subsampling of component N is the same as
        * plane N, which is currently true for all formats we have but
        * it might not be in the future. */
-      gint w = GST_VIDEO_FRAME_COMP_WIDTH (&frame, plane)
-          * GST_VIDEO_FRAME_COMP_PSTRIDE (&frame, plane);
-      /* FIXME: workaround for complex formats like v210, UYVP and
-       * IYU1 that have pstride == 0 */
-      if (w == 0)
-        w = GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
-      gint h = GST_VIDEO_FRAME_COMP_HEIGHT (&frame, plane);
+      const gint pstride = GST_VIDEO_FRAME_COMP_PSTRIDE (&frame, plane);
+      if (pstride) {
+        pd += pstride * GST_VIDEO_FORMAT_INFO_SCALE_WIDTH(info, plane, x);
+        w = pstride * GST_VIDEO_FORMAT_INFO_SCALE_WIDTH(info, plane, width);
+      } else {
+        GST_ERROR_OBJECT (checksumsink, "pstride == 0 is unsupported");
+        return GST_FLOW_ERROR;
+      }
+      gint h = GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info, plane, height);
       gint ps = GST_VIDEO_FRAME_PLANE_STRIDE (&frame, plane);
 
       /* current plane size and data required for plane_checksum */
